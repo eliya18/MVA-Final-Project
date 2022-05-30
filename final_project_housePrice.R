@@ -68,10 +68,10 @@ houses %>%
 houses <- as.data.frame(houses)
 rownames(houses)<- houses$Id
 
-#divide in continous and categorical
-houses_cont <- subset(houses, select= c(2,5,8,9,10,14,15,16,17) )
+#divide in continuous 
+houses_cont <- subset(houses, select= c(2,5,8,9,10,14,15,16,17))
 
-#select categorical 
+#categorical 
 houses_cat <- subset(houses, select= c(3,4,6,7,11,12,13))
 
 #and categorical with salesPrice as supplementary
@@ -81,10 +81,14 @@ library(GGally)
 ggpairs(houses_cont)
 
 #MCA
-#only prices as sup
+#only cat
 res.mca1 <- MCA(houses_cat,quanti.sup=8,ncp= 10, graph=TRUE, level.ventil = 0.01)
 help(MCA)
 res.mca1
+
+#cat with dependant as supplementary
+res.mca2 <- MCA(houses_cat2,quanti.sup=8,ncp= 10, graph=TRUE, level.ventil = 0.01)
+res.mca2
 
 #reorder variables to use all quantitative as supplementary
 houses_mca <- houses[, c(3,4,6,7,11,12,13,2,5,8,9,10,14,15,16,17,18)]
