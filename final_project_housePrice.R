@@ -53,13 +53,6 @@ dfSummary(houses) %>%
   kbl(caption = "Houses Dataset") %>%
   kable_classic(full_width = F, html_font = "Cambria")
 
-#outliers 
-
-#normalize
-#normalization of numeric vbles
-
-#scaled <- x %>% mutate_if(is.numeric, scale)
-
 #Id to rowname
 houses %>%
   remove_rownames() %>%
@@ -71,14 +64,59 @@ rownames(houses)<- houses$Id
 #divide in continuous 
 houses_cont <- subset(houses, select= c(2,5,8,9,10,14,15,16,17))
 
+#continous and response
+houses_cont1 <- subset(houses, select= c(2,5,8,9,10,14,15,16,17,18))
+
 #categorical 
 houses_cat <- subset(houses, select= c(3,4,6,7,11,12,13))
 
-#and categorical with salesPrice as supplementary
+#categorical and response
 houses_cat2 <- subset(houses, select= c(3,4,6,7,11,12,13,18))
 
+#plots for continous data 
 library(GGally)
 ggpairs(houses_cont)
+
+#barplot for categorical 
+grid.arrange(
+  ggplot(data = houses_cat, aes())+geom_bar(),
+  ncol=2)
+
+#outliers 
+library(ggstatsplot)
+boxplot(houses_cont)$out
+
+boxplot(houses_cont1)$out
+
+#log for large magnitudes
+houses_cont1$LotArea<- log(houses_cont1$LotArea)
+houses_cont1$TotalBsmtSF<- log(houses_cont1$TotalBsmtSF)
+houses_cont1$GrLivArea<- log(houses_cont1$GrLivArea)
+houses_cont1$GarageArea<- log(houses_cont1$GarageArea)
+houses_cont1$`1stFlrSF`<- log(houses_cont1$`1stFlrSF`)
+houses_cont1$`2ndFlrSF`<- log(houses_cont1$`2ndFlrSF`)
+houses_cont1$WoodDeckSF<- log(houses_cont1$WoodDeckSF)
+houses_cont1$OpenPorchSF<- log(houses_cont1$OpenPorchSF)
+houses_cont1$PoolArea<- log(houses_cont1$PoolArea)
+
+scaled <- houses_cont %>% mutate_if(is.numeric, scale)
+
+boxplot(scaled)$out
+
+#detect
+outliers_LotArea <- boxplot(scaled$LotArea, plot=FALSE)$out
+outliers_LotArea1 <- boxplot(x$LotArea, plot=FALSE)$out
+outliers_TotalBSmtSF <- boxplot(scaled$TotalBsmtSF, plot=FALSE)$out
+outliers_2ndFlrSF <- boxplot(scaled$`2ndFlrSF`, plot=FALSE)$out
+outliers_1stFlrSF <- boxplot(scaled$`1stFlrSF`, plot=FALSE)$out
+outliers_GrLivArea <- boxplot(scaled$GrLivArea, plot=FALSE)$out
+outliers_GarageArea <- boxplot(scaled$GarageArea, plot=FALSE)$out
+outliers_WoodDeckSF <- boxplot(scaled$WoodDeckSF, plot=FALSE)$out
+outliers_OpenPorchSF <- boxplot(scaled$OpenPorchSF, plot=FALSE)$out
+outliers_PoolArea <- boxplot(scaled$PoolArea, plot=FALSE)$out
+#aprox 320 
+
+
 
 #MCA
 #only cat
@@ -116,6 +154,7 @@ plot(res.mca,invisible=c("var","quali.sup"),cex=.5,label="none",title="Graph of 
 plot(res.mca,invisible=c("var","quali.sup"),cex=.5,label="none",title="Graph of the individuals", habillage="YearRemodAdd") 
 plot(res.mca,invisible=c("var","quali.sup"),cex=.5,label="none",title="Graph of the individuals", habillage="BedroomAbvGr") 
 plot(res.mca,invisible=c("var","quali.sup"),cex=.5,label="none",title="Graph of the individuals", habillage="YearBuilt") 
+plot(res.mca,invisible=c("var","quali.sup"),cex=.5,label="none",title="Graph of the individuals", habillage="FullBath")
 
 fviz_mca_biplot(res.mca, select.ind = list(contrib = 50), 
                 ggtheme = theme_minimal())
@@ -136,3 +175,36 @@ help("fviz_mca_var")
 res.mca$ind$coord
 res.mca$var$contrib
 
+
+#LDA
+library(MASS)
+summary(houses_cont1$SalePrice)
+summary(houses_cont1$PoolArea)
+#we need to transform the response variable into categories
+#we will segment prices into low, mid and high
+
+houses_cont1$SalePrice <- cut(houses_cont1$SalePrice, breaks = c(34900,274900,514000,Inf),labels = c("lowP", "MidP", "HighP"), include.lowest = TRUE )
+str(houses_cont1$SalePrice)
+
+library(GGally)
+ggpairs(houses_cont1, columns = 6:9, 
+        ggplot2::aes(colour=SalePrice),
+        title="Correlation matrix. House data")
+
+#separate the data into train and test
+library(caret)
+library(klaR)
+library(mda)
+
+set.seed(123)
+training.samples <- houses_cont1$SalePrice %>%
+  createDataPartition(p = 0.8, list = FALSE)
+
+train.houses <- houses_cont1[training.samples, ]
+test.houses <- houses_cont1[-training.samples, ]
+paste0("Proportion of training is ", round((nrow(train.houses)/nrow(houses_cont1))*100,2),"%")
+paste0("Proportion of test is ", round((nrow(test.houses)/nrow(houses_cont1))*100,2),"%")
+
+model_lda <- lda(g ~ . , data = train.houses)
+model_lda
+plot(model_lda)
