@@ -61,17 +61,67 @@ houses %>%
 houses <- as.data.frame(houses)
 rownames(houses)<- houses$Id
 
+houses$Id <- NULL
+
+#outliers 
+library(ggstatsplot)
+boxplot(houses_cont)$out
+boxplot(houses_cont1)$out
+
+#log for large magnitudes
+# houses_cont1$LotArea<- log(houses_cont1$LotArea)
+# houses_cont1$TotalBsmtSF<- log(houses_cont1$TotalBsmtSF)
+# houses_cont1$GrLivArea<- log(houses_cont1$GrLivArea)
+# houses_cont1$GarageArea<- log(houses_cont1$GarageArea)
+# houses_cont1$`1stFlrSF`<- log(houses_cont1$`1stFlrSF`)
+# houses_cont1$`2ndFlrSF`<- log(houses_cont1$`2ndFlrSF`)
+# houses_cont1$WoodDeckSF<- log(houses_cont1$WoodDeckSF)
+# houses_cont1$OpenPorchSF<- log(houses_cont1$OpenPorchSF)
+# houses_cont1$PoolArea<- log(houses_cont1$PoolArea)
+
+scaled <- houses %>% mutate_if(is.numeric, scale)
+
+#detect
+outliers_LotArea <- boxplot(scaled$LotArea, plot=FALSE)$out
+outliers_TotalBSmtSF <- boxplot(scaled$TotalBsmtSF, plot=FALSE)$out
+outliers_2ndFlrSF <- boxplot(scaled$`2ndFlrSF`, plot=FALSE)$out
+outliers_1stFlrSF <- boxplot(scaled$`1stFlrSF`, plot=FALSE)$out
+outliers_GrLivArea <- boxplot(scaled$GrLivArea, plot=FALSE)$out
+outliers_GarageArea <- boxplot(scaled$GarageArea, plot=FALSE)$out
+outliers_WoodDeckSF <- boxplot(scaled$WoodDeckSF, plot=FALSE)$out
+outliers_OpenPorchSF <- boxplot(scaled$OpenPorchSF, plot=FALSE)$out
+outliers_PoolArea <- boxplot(scaled$PoolArea, plot=FALSE)$out
+outliers_SalePrice <- boxplot(scaled$SalePrice, plot=FALSE)$out
+#aprox 320
+
+#remove
+scaled<- scaled[-which(scaled$`2ndFlrSF` %in% outliers_2ndFlrSF),] #only 2
+scaled<- scaled[-which(scaled$LotArea %in% outliers_LotArea),]
+scaled<- scaled[-which(scaled$TotalBsmtSF %in% outliers_TotalBSmtSF),]
+scaled<- scaled[-which(scaled$`1stFlrSF` %in% outliers_1stFlrSF),]
+scaled<- scaled[-which(scaled$GrLivArea %in% outliers_GrLivArea),]
+scaled<- scaled[-which(scaled$GarageArea %in% outliers_GarageArea),]
+scaled<- scaled[-which(scaled$WoodDeckSF %in% outliers_WoodDeckSF),]
+scaled<- scaled[-which(scaled$OpenPorchSF %in% outliers_OpenPorchSF),]
+scaled<- scaled[-which(scaled$PoolArea %in% outliers_PoolArea),]
+scaled<- scaled[-which(scaled$SalePrice %in% outliers_SalePrice),]
+
+houses_clean <- scaled
+
+#independant variables
+houses_noPrice <-subset(houses_clean, select= c(1:16))
+
 #divide in continuous 
-houses_cont <- subset(houses, select= c(2,5,8,9,10,14,15,16,17))
+houses_cont <- subset(houses_clean, select= c(1,4,7,8,9,13,14,15,16))
 
 #continous and response
-houses_cont1 <- subset(houses, select= c(2,5,8,9,10,14,15,16,17,18))
+houses_cont1 <- subset(houses_clean, select= c(1,4,7,8,9,13,14,15,16,17))
 
 #categorical 
-houses_cat <- subset(houses, select= c(3,4,6,7,11,12,13))
+houses_cat <- subset(houses_clean, select= c(2,3,5,6,10,11,12))
 
 #categorical and response
-houses_cat2 <- subset(houses, select= c(3,4,6,7,11,12,13,18))
+houses_cat2 <- subset(houses_clean, select= c(2,3,5,6,10,11,12,17))
 
 #plots for continous data 
 library(GGally)
@@ -82,45 +132,9 @@ grid.arrange(
   ggplot(data = houses_cat, aes())+geom_bar(),
   ncol=2)
 
-#outliers 
-library(ggstatsplot)
-boxplot(houses_cont)$out
-
-boxplot(houses_cont1)$out
-
-#log for large magnitudes
-houses_cont1$LotArea<- log(houses_cont1$LotArea)
-houses_cont1$TotalBsmtSF<- log(houses_cont1$TotalBsmtSF)
-houses_cont1$GrLivArea<- log(houses_cont1$GrLivArea)
-houses_cont1$GarageArea<- log(houses_cont1$GarageArea)
-houses_cont1$`1stFlrSF`<- log(houses_cont1$`1stFlrSF`)
-houses_cont1$`2ndFlrSF`<- log(houses_cont1$`2ndFlrSF`)
-houses_cont1$WoodDeckSF<- log(houses_cont1$WoodDeckSF)
-houses_cont1$OpenPorchSF<- log(houses_cont1$OpenPorchSF)
-houses_cont1$PoolArea<- log(houses_cont1$PoolArea)
-
-scaled <- houses_cont %>% mutate_if(is.numeric, scale)
-
-boxplot(scaled)$out
-
-#detect
-outliers_LotArea <- boxplot(scaled$LotArea, plot=FALSE)$out
-outliers_LotArea1 <- boxplot(x$LotArea, plot=FALSE)$out
-outliers_TotalBSmtSF <- boxplot(scaled$TotalBsmtSF, plot=FALSE)$out
-outliers_2ndFlrSF <- boxplot(scaled$`2ndFlrSF`, plot=FALSE)$out
-outliers_1stFlrSF <- boxplot(scaled$`1stFlrSF`, plot=FALSE)$out
-outliers_GrLivArea <- boxplot(scaled$GrLivArea, plot=FALSE)$out
-outliers_GarageArea <- boxplot(scaled$GarageArea, plot=FALSE)$out
-outliers_WoodDeckSF <- boxplot(scaled$WoodDeckSF, plot=FALSE)$out
-outliers_OpenPorchSF <- boxplot(scaled$OpenPorchSF, plot=FALSE)$out
-outliers_PoolArea <- boxplot(scaled$PoolArea, plot=FALSE)$out
-#aprox 320 
-
-
-
 #MCA
 #only cat
-res.mca1 <- MCA(houses_cat,quanti.sup=8,ncp= 10, graph=TRUE, level.ventil = 0.01)
+res.mca1 <- MCA(houses_cat,ncp= 10, graph=TRUE, level.ventil = 0.01)
 help(MCA)
 res.mca1
 
@@ -129,7 +143,7 @@ res.mca2 <- MCA(houses_cat2,quanti.sup=8,ncp= 10, graph=TRUE, level.ventil = 0.0
 res.mca2
 
 #reorder variables to use all quantitative as supplementary
-houses_mca <- houses[, c(3,4,6,7,11,12,13,2,5,8,9,10,14,15,16,17,18)]
+houses_mca <- houses_clean[, c(2,3,5,6,10,11,12,1,4,7,8,9,13,14,15,16,17)]
 res.mca <- MCA(houses_mca,quanti.sup =8:17,ncp= 10, graph=TRUE, level.ventil = 0.01)
 
 #get eigan values
@@ -183,10 +197,16 @@ summary(houses_cont1$PoolArea)
 #we need to transform the response variable into categories
 #we will segment prices into low, mid and high
 
+#deescale
+houses_cont1$SalePrice <- 
 houses_cont1$SalePrice <- cut(houses_cont1$SalePrice, breaks = c(34900,274900,514000,Inf),labels = c("lowP", "MidP", "HighP"), include.lowest = TRUE )
 str(houses_cont1$SalePrice)
 
 library(GGally)
+ggpairs(houses_cont1, columns = 1:5, 
+        ggplot2::aes(colour=SalePrice),
+        title="Correlation matrix. House data")
+
 ggpairs(houses_cont1, columns = 6:9, 
         ggplot2::aes(colour=SalePrice),
         title="Correlation matrix. House data")
@@ -205,6 +225,6 @@ test.houses <- houses_cont1[-training.samples, ]
 paste0("Proportion of training is ", round((nrow(train.houses)/nrow(houses_cont1))*100,2),"%")
 paste0("Proportion of test is ", round((nrow(test.houses)/nrow(houses_cont1))*100,2),"%")
 
-model_lda <- lda(g ~ . , data = train.houses)
+model_lda <- lda(SalePrice ~ . , data = train.houses)
 model_lda
 plot(model_lda)
