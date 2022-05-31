@@ -60,7 +60,6 @@ houses %>%
 
 houses <- as.data.frame(houses)
 rownames(houses)<- houses$Id
-
 houses$Id <- NULL
 
 #outliers 
@@ -79,6 +78,11 @@ boxplot(houses_cont1)$out
 # houses_cont1$OpenPorchSF<- log(houses_cont1$OpenPorchSF)
 # houses_cont1$PoolArea<- log(houses_cont1$PoolArea)
 
+#take SalePrice 
+salePrice_og <- subset(houses, select= c(17))
+colnames(salePrice_og) <- c('SalesPrice_og')
+
+#scale 
 scaled <- houses %>% mutate_if(is.numeric, scale)
 
 #detect
@@ -94,6 +98,9 @@ outliers_PoolArea <- boxplot(scaled$PoolArea, plot=FALSE)$out
 outliers_SalePrice <- boxplot(scaled$SalePrice, plot=FALSE)$out
 #aprox 320
 
+#Join scaled with SalePrice_og
+scaled1 <- left_join(scaled, salePrice_og, by='Id')
+
 #remove
 scaled<- scaled[-which(scaled$`2ndFlrSF` %in% outliers_2ndFlrSF),] #only 2
 scaled<- scaled[-which(scaled$LotArea %in% outliers_LotArea),]
@@ -108,20 +115,11 @@ scaled<- scaled[-which(scaled$SalePrice %in% outliers_SalePrice),]
 
 houses_clean <- scaled
 
-#independant variables
-houses_noPrice <-subset(houses_clean, select= c(1:16))
-
-#divide in continuous 
+#continuous 
 houses_cont <- subset(houses_clean, select= c(1,4,7,8,9,13,14,15,16))
-
-#continous and response
-houses_cont1 <- subset(houses_clean, select= c(1,4,7,8,9,13,14,15,16,17))
 
 #categorical 
 houses_cat <- subset(houses_clean, select= c(2,3,5,6,10,11,12))
-
-#categorical and response
-houses_cat2 <- subset(houses_clean, select= c(2,3,5,6,10,11,12,17))
 
 #plots for continous data 
 library(GGally)
@@ -139,6 +137,7 @@ help(MCA)
 res.mca1
 
 #cat with dependant as supplementary
+houses_cat2 <- subset(houses_clean, select= c(2,3,5,6,10,11,12,17))
 res.mca2 <- MCA(houses_cat2,quanti.sup=8,ncp= 10, graph=TRUE, level.ventil = 0.01)
 res.mca2
 
@@ -189,16 +188,16 @@ help("fviz_mca_var")
 res.mca$ind$coord
 res.mca$var$contrib
 
-
 #LDA
 library(MASS)
 summary(houses_cont1$SalePrice)
 summary(houses_cont1$PoolArea)
+
 #we need to transform the response variable into categories
 #we will segment prices into low, mid and high
 
-#deescale
-houses_cont1$SalePrice <- 
+#unscale SalePrice
+houses_cont1$SalePrice<-unscale(houses_cont1$SalePrice)
 houses_cont1$SalePrice <- cut(houses_cont1$SalePrice, breaks = c(34900,274900,514000,Inf),labels = c("lowP", "MidP", "HighP"), include.lowest = TRUE )
 str(houses_cont1$SalePrice)
 
