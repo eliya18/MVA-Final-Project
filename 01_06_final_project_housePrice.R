@@ -178,15 +178,28 @@ summary(houses_cont$SalePrice)
 
 #we need to transform the response variable into categories
 #we will segment prices into low, mid and high
-
 houses_lda <- houses_cont
-houses_lda$SalePrice <- cut(houses_lda$SalePrice, breaks = c(34900,274900,514000,Inf),labels = c("lowP", "MidP", "HighP"), include.lowest = TRUE )
+houses_lda$SalePrice <- cut(houses_lda$SalePrice, breaks = c(34900,114900,194900,274900,514000,Inf),labels = c("lowP","lowP1", "lowP2", "MidP", "HighP"), include.lowest = TRUE )
+#houses_lda$SalePrice <- cut(houses_lda$SalePrice, breaks = c(34900,274900,514000,Inf),labels = c("lowP", "MidP", "HighP"), include.lowest = TRUE )
+
 str(houses_lda$SalePrice)
 
 library(GGally)
 ggpairs(houses_lda, columns = 1:6, 
         ggplot2::aes(colour=SalePrice),
         title="Correlation matrix. House data")
+
+#log transform fot better distribution inspect/fit
+houses_lda$LotArea<- log(0.5+houses_lda$LotArea)
+houses_lda$TotalBsmtSF<- log(0.5+houses_lda$TotalBsmtSF)
+houses_lda$GrLivArea<- log(0.5+houses_lda$GrLivArea)
+houses_lda$GarageArea<- log(0.5+houses_lda$GarageArea)
+houses_lda$`1stFlrSF`<- log(0.5+houses_lda$`1stFlrSF`)
+houses_lda$BsmtUnfSF<- log(0.5+houses_lda$BsmtUnfSF)
+
+#scale 
+scaled <- houses_lda %>% mutate_if(is.numeric, scale)
+houses_lda <- scaled
 
 #separate the data into train and test
 library(caret)
@@ -199,9 +212,49 @@ training.samples <- houses_lda$SalePrice %>%
 
 train.houses <- houses_lda[training.samples, ]
 test.houses <- houses_lda[-training.samples, ]
-paste0("Proportion of training is ", round((nrow(train.houses)/nrow(houses_cont1))*100,2),"%")
-paste0("Proportion of test is ", round((nrow(test.houses)/nrow(houses_cont1))*100,2),"%")
+paste0("Proportion of training is ", round((nrow(train.houses)/nrow(houses_lda))*100,2),"%")
+paste0("Proportion of test is ", round((nrow(test.houses)/nrow(houses_lda))*100,2),"%")
 
-model_lda <- lda(SalePrice ~ . , data = train.houses)
-model_lda
-plot(model_lda)
+model_fda <- fda(SalePrice ~ . , data = train.houses)
+model_fda
+plot(model_fda)
+
+predictionsfda <- model_fda %>% predict(test.houses)
+
+# Model accuracy
+model_fda$confusion
+
+confusion(model_fda,test.houses) %>% #Confusion in the test data 
+  kbl(caption = "Confusion matrix in the test houses data") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+sum(diag(confusion(model_fda,test.houses)))/sum(confusion(model_fda,test.houses))
+
+#lda to compare
+model <- lda(SalePrice~., data = train.houses)
+model
+data.lda.values <- predict(model)
+plot.data <- data.frame(X=data.lda.values$x[,1], 
+                        Y=data.lda.values$x[,2],
+                        SalePrice=train.houses$SalePrice)
+head(plot.data)
+ggplot(data=plot.data, aes(x=X, y=Y)) +
+  geom_point(aes(color=SalePrice)) +
+  xlab("LD1") + ylab("LD2") +
+  theme_bw()
+
+model_predictions <- model %>% predict(test.houses)
+names(model_predictions)
+head(model_predictions$class, 6)
+
+model_predictions$posterior[sample(1:nrow(model_predictions$posterior), 10, replace=FALSE),] %>% 
+  kbl(caption = "Predicted probabilities of class membership (sample of 10)") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+# LDs Linear Discriminants
+head(model_predictions$x, 3)
+
+#model accuracy
+mean(model_predictions$class==test.houses$SalePrice)
+
+#Clustering 
