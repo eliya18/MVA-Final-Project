@@ -258,3 +258,172 @@ head(model_predictions$x, 3)
 mean(model_predictions$class==test.houses$SalePrice)
 
 #Clustering 
+library(kernlab)
+library(gridExtra)
+library(cluster)
+library(factoextra)
+library(stats)
+
+#scaled  data
+houses_clust<- houses %>% mutate_if(is.numeric, scale)
+houses_clust$Id<- NULL
+houses_clust
+
+d <- dist(houses_clust, method = "euclidean")
+
+hc.single   <- hclust(d, method="single")
+hc.complete <- hclust(d, method="complete")
+hc.average  <- hclust(d, method="average")
+hc.ward     <- hclust(d, method="ward.D")
+
+plot(hc.single, cex = 0.6, hang = -1)
+plot(hc.complete, cex = 0.6, hang = -1)
+plot(hc.average, cex = 0.6, hang = -1)
+plot(hc.ward, cex = 0.6, hang = -1)
+
+agnes.complete <- agnes(d, method="complete")
+
+#The agglomerative coefficient is:
+agnes.complete$ac
+
+# vector of methods to compare
+m <- c("average", "single", "complete", "ward")
+names(m) <- c( "average", "single", "complete", "ward")
+
+# function to compute coefficient
+ac <- function(x) {
+  agnes(d, method = x)$ac
+}  
+
+library(purrr)
+
+map_dbl(m, ac)
+
+agnes.ward <- agnes(d, method = "ward")
+
+pltree(agnes.ward, cex = 0.6, hang = -1, main = "Dendrogram of agnes")
+
+#cut the tree
+(clust <- cutree(agnes.ward, k = 3))
+fviz_cluster(list(data= d, cluster = clust))
+
+(clust4 <- cutree(agnes.ward, k = 4))
+fviz_cluster(list(data= d, cluster = clust4))
+
+(clust5 <- cutree(agnes.ward, k = 5))
+fviz_cluster(list(data= d, cluster = clust5))
+
+(clust6 <- cutree(agnes.ward, k = 6))
+fviz_cluster(list(data= d, cluster = clust6))
+
+#color groups in dendogram
+pltree(agnes.ward, hang=-1, cex = 0.6)
+rect.hclust(agnes.ward, k = 3, border = 2:5)
+
+#kmeans
+houses_clust<- houses_cont %>% mutate_if(is.numeric, scale)
+set.seed(123)
+k2 <- kmeans(houses_clust, centers = 2, nstart = 25)
+k2 
+fviz_cluster(k2, data=d)
+
+k3 <- kmeans(houses_clust, centers = 3, nstart = 25)
+k3 
+fviz_cluster(k3, data=d)
+
+k3 <- kmeans(houses_clust, centers = 3, nstart = 35)
+k3 
+fviz_cluster(k3, data=d)
+
+k3 <- kmeans(houses_clust, centers = 3, nstart = 10)
+k3 
+fviz_cluster(k3, data=d)
+
+k4 <- kmeans(houses_clust, centers = 4, nstart = 25)
+k4 
+fviz_cluster(k4, data=d)
+
+k4 <- kmeans(houses_clust, centers = 4, nstart = 10)
+k4 
+fviz_cluster(k4, data=d)
+
+k4 <- kmeans(houses_clust, centers = 4, nstart = 35)
+k4 
+fviz_cluster(k4, data=d)
+
+k5 <- kmeans(houses_clust, centers = 5, nstart = 25)
+k5 
+fviz_cluster(k5, data=d)
+
+#elbow method
+fviz_nbclust(houses_clust, kmeans, method = "wss") +
+  geom_vline(xintercept = 3, linetype = 2)
+
+#average siloutte
+fviz_nbclust(houses_clust, kmeans, method = "silhouette")
+
+gap_stat <- clusGap(houses_clust, FUN = kmeans, 
+                    nstart = 25, K.max = 10, B = 10)
+
+fviz_gap_stat(gap_stat)
+
+library(NbClust)
+nc <- NbClust(houses_clust, min.nc=2, max.nc=10, method="kmeans")
+
+set.seed(123)
+k2 <- kmeans(houses_clust, centers = 2, nstart = 10)
+k2 
+fviz_cluster(k2, data=d)
+
+set.seed(123)
+k2 <- kmeans(houses_clust, centers = 2, nstart = 50)
+k2 
+fviz_cluster(k2, data=d)
+
+#Hierarchical K-Means Clustering
+library(dplyr)
+res.hk <-hkmeans(houses_clust, 2)
+res.hk
+
+fviz_dend(res.hk, cex = 0.6, palette = "jco", 
+          rect = TRUE, rect_border = "jco", rect_fill = TRUE)
+
+fviz_cluster(res.hk, palette = "jco", repel = TRUE,
+             ggtheme = theme_classic())
+
+#model based
+library(mclust)
+
+mc <- Mclust(houses_clust)
+summary(mc) # Print a summary
+
+mc$modelName  
+mc$G 
+
+library(kableExtra)
+mc$z  %>%
+  as.data.frame(.) %>% 
+  sample_n(., 10, replace=FALSE) %>% 
+  kbl(caption = "Probability to belong to a given cluster (sample of 10)") %>%
+  kable_classic(full_width = F, html_font = "Cambria")
+
+head(mc$classification,10)
+plot.Mclust(mc, what="BIC")
+plot.Mclust(mc, what="classification", addEllipses = TRUE)
+
+fviz_mclust(mc, "classification", geom = "point", 
+            pointsize = 1.5, palette = "jco")
+
+fviz_mclust(mc, "uncertainty", palette = "jco")
+
+table(mc$classification)
+mc.G4 <- Mclust(houses_clust, G=4)
+summary(mc.G4) # Print a summary
+
+fviz_mclust(mc.G4, "classification", geom = "point", 
+            pointsize = 1.5, palette = "jco")
+
+table(houses_clust$hx)
+
+table(houses_clust$hx, mc.G4$classification)
+sum(diag(table(houses_clust$hx, mc.G4$classification)))/sum(table(houses_clust$hx, mc.G4$classification))
